@@ -8,7 +8,15 @@ dist/
 *.egg-info/
 
 SyncTalk/SyncTalk/
-
+DFRF/dataset/0
+DFRF/dataset/finetune_models
+DFRF/dataset/french512
+DFRF/dataset/out
+79999_iter.pth
+.env
+01_MorphableModel.mat
+exp_info.npy
+3DMM_info.npy
 GPT-SoVITS/
 
 test_data/

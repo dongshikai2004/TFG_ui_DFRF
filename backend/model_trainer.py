@@ -1,7 +1,11 @@
 import subprocess
 import os
 import time
-
+import shutil
+import re
+from .utils import upload_file_and_get_url
+from datetime import datetime, timedelta
+from .config import CONTAINER_NAME
 def train_model(data):
     """
     模拟模型训练逻辑。
@@ -11,43 +15,40 @@ def train_model(data):
         print(f"  {k}: {v}")
     
     video_path = data['ref_video']
+    epoch = data['epoch']
     print(f"输入视频：{video_path}")
-
-    print("[backend.model_trainer] 模型训练中...")
-
-    if data['model_choice'] == "SyncTalk":
+    
+    # 复制视频到目录
+    subprocess.run(f"docker cp {video_path} {CONTAINER_NAME}:/DFRF/dataset/vids")
+    video_id,_ = os.path.splitext(os.path.basename(video_path))
+    
+    
+    if data['model_choice'] == "DFRF":
+        # 数据预处理
+        print("[backend.model_trainer] 数据预处理中...")
+        subprocess.run(f"docker exec {CONTAINER_NAME} python process_data.py {video_id}")
+        # print(f"docker exec {CONTAINER_NAME} python /DFRF/process_data.py {video_id}")
+        print("[backend.model_trainer] 数据预处理完成")
+    
+        # 训练
+        print("[backend.model_trainer] 训练中...")
+        # subprocess.run(f"docker exec {CONTAINER_NAME} ls")
+        subprocess.run(f"docker exec {CONTAINER_NAME} python NeRFs/run_nerf_deform.py --config dataset/{video_id}/0/config.txt --N_iters {epoch}")
+        print((f"docker exec -w /DFRF {CONTAINER_NAME} python NeRFs/run_nerf_deform.py --config dataset/{video_id}/0/config.txt --N_iters {epoch}"))
+        print("[backend.model_trainer] 训练完成")
+    elif data['model_choice'] == "VideoRetalk":
+        api_key = os.getenv("DASHSCOPE_API_KEY")
+        if not api_key:
+            raise Exception("请设置DASHSCOPE_API_KEY环境变量")
+        model_name="videoretalk"
+        file_path = data['ref_video']
         try:
-            # 构建命令
-            cmd = [
-                "./SyncTalk/run_synctalk.sh", "train",
-                "--video_path", data['ref_video'],
-                "--gpu", data['gpu_choice'],
-                "--epochs", data['epoch']
-            ]
-            
-            print(f"[backend.model_trainer] 执行命令: {' '.join(cmd)}")
-            # 执行训练命令
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                check=True
-            )
-            
-            print("[backend.model_trainer] 训练输出:", result.stdout)
-            if result.stderr:
-                print("[backend.model_trainer] 错误输出:", result.stderr)
-                
-        except subprocess.CalledProcessError as e:
-            print(f"[backend.model_trainer] 训练失败，退出码: {e.returncode}")
-            print(f"错误输出: {e.stderr}")
-            return video_path
-        except FileNotFoundError:
-            print("[backend.model_trainer] 错误: 找不到训练脚本")
-            return video_path
+            public_url = upload_file_and_get_url(api_key, model_name, file_path)
+            # with open("tmp/video_url.txt",'w') as f:
+            #     f.write(public_url)
+            expire_time = datetime.now() + timedelta(hours=48)
+            print(f"文件上传成功，有效期为48小时，过期时间: {expire_time.strftime('%Y-%m-%d %H:%M:%S')}")
+            print(f"临时URL: {public_url}")
         except Exception as e:
-            print(f"[backend.model_trainer] 训练过程中发生未知错误: {e}")
-            return video_path
-
-    print("[backend.model_trainer] 训练完成")
+            print(f"Error: {str(e)}")
     return video_path

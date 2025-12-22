@@ -1,66 +1,49 @@
 import os
-import time
 import subprocess
-import shutil
+import requests
+from .utils import upload_file_and_get_url,check_and_download_video
+from .config import CONTAINER_NAME
 
 def generate_video(data):
     """
     模拟视频生成逻辑：接收来自前端的参数，并返回一个视频路径。
     """
+    
     print("[backend.video_generator] 收到数据：")
     for k, v in data.items():
         print(f"  {k}: {v}")
-
-    if data['model_name'] == "SyncTalk":
+    video_file_name = os.path.splitext(os.path.basename(data['ref_video']))[0]
+    audio_file = os.path.basename(data['ref_audio'])
+    if data['model_name'] == "DFRF":
         try:
-            
-            # 构建命令
-            cmd = [
-                './SyncTalk/run_synctalk.sh', 'infer',
-                '--model_dir', data['model_param'],
-                '--audio_path', data['ref_audio'],
-                '--gpu', data['gpu_choice']
-            ]
-
-            print(f"[backend.video_generator] 执行命令: {' '.join(cmd)}")
-
-            # 执行命令
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True
-                # check=True
+            print(f"[backend.video_generator]处理音频{data['ref_audio']}")
+            subprocess.run(
+                f"docker cp {data['ref_audio']} {CONTAINER_NAME}:/DFRF/tmp/"
             )
+            subprocess.run(
+                f"docker exec {CONTAINER_NAME} ffmpeg -i /DFRF/tmp/{audio_file} -acodec pcm_s16le -ar 16000 -ac 1 -y /DFRF/tmp/t.wav"
+            )
+            print("----------------------------------------")
+            subprocess.run(
+                f"docker exec {CONTAINER_NAME} python /DFRF/data_util/deepspeech_features/extract_ds_features.py --input /DFRF/tmp/t.wav --output /DFRF/tmp/t.npy"
+            )
+            print("[backend.video_generator]音频处理完成")
             
-            print("命令标准输出:", result.stdout)
-            if result.stderr:
-                print("命令标准错误:", result.stderr)
+            print("[backend.video_generator]开始推理")
+            subprocess.run(
+                f"docker exec {CONTAINER_NAME} python /DFRF/rendering.py --iters {data['iter']}_head.tar --names {video_file_name} --datasets {video_file_name} --aud /DFRF/tmp/t.npy --near 0.5555068731307984 --far 1.1555068731307983 --bc_type torso_imgs --suffix val --render_factor 8"
+            )
+            print("[backend.video_generator]推理完成")
             
             # 文件原路径与目的路径 
-            model_dir_name = os.path.basename(data['model_param'])
-            source_path = os.path.join("SyncTalk", "model", model_dir_name, "results", "test_audio.mp4")
-            audio_name = os.path.splitext(os.path.basename(data['ref_audio']))[0]
-            video_filename = f"{model_dir_name}_{audio_name}.mp4"
-            destination_path = os.path.join("static", "videos", video_filename)
-            # 检查文件是否存在
-            if os.path.exists(source_path):
-                shutil.copy(source_path, destination_path)
-                print(f"[backend.video_generator] 视频生成完成，路径：{destination_path}")
-                return destination_path
-            else:
-                print(f"[backend.video_generator] 视频文件不存在: {source_path}")
-                # 尝试查找任何新生成的mp4文件
-                results_dir = os.path.join("SyncTalk", "model", model_dir_name, "results")
-                if os.path.exists(results_dir):
-                    mp4_files = [f for f in os.listdir(results_dir) if f.endswith('.mp4')]
-                    if mp4_files:
-                        latest_file = max(mp4_files, key=lambda f: os.path.getctime(os.path.join(results_dir, f)))
-                        source_path = os.path.join(results_dir, latest_file)
-                        shutil.copy(source_path, destination_path)
-                        print(f"[backend.video_generator] 找到最新视频文件: {destination_path}")
-                        return destination_path
-                
-                return os.path.join("static", "videos", "out.mp4")
+            source_path = f"DFRF/dataset/finetune_models/{video_file_name}_val/renderonly_test_{str(int(data['iter'])-1).zfill(6)}/video.mp4"
+            destination_path = os.path.join("static", "videos")
+            
+            subprocess.run(
+                f"docker cp {CONTAINER_NAME}:{source_path} {destination_path} "
+            )
+            print(f"[backend.video_generator] 视频生成完成，路径：{destination_path}\\video.mp4")
+            return destination_path
             
         except subprocess.CalledProcessError as e:
             print(f"[backend.video_generator] 命令执行失败: {e}")
@@ -69,7 +52,47 @@ def generate_video(data):
         except Exception as e:
             print(f"[backend.video_generator] 其他错误: {e}")
             return os.path.join("static", "videos", "out.mp4")
-    
+    elif data['model_name'] == "VideoRetalk":
+        # 上传音频
+        api_key = os.getenv("DASHSCOPE_API_KEY")
+        if not api_key:
+            raise Exception("请设置DASHSCOPE_API_KEY环境变量")
+        model_name="videoretalk"
+        try:
+            video_url = upload_file_and_get_url(api_key, model_name, data['ref_video'])
+            audio_url = upload_file_and_get_url(api_key, model_name, data['ref_audio'])
+        except Exception as e:
+            print(f"Error: {str(e)}")
+        url = "https://dashscope.aliyuncs.com/api/v1/services/aigc/image2video/video-synthesis/"
+        headers = {
+            'X-DashScope-Async': 'enable',
+            'X-DashScope-OssResourceResolve': 'enable',
+            'Authorization': f'Bearer {api_key}',
+            'Content-Type': 'application/json'
+        }
+        data = {
+            "model": "videoretalk",
+            "input": {
+                "video_url": video_url,
+                "audio_url": audio_url,
+                "ref_image_url": ""
+            },
+            "parameters": {
+                "video_extension": False
+            }
+        }
+        response = requests.post(url, headers=headers, json=data)
+        task_id = response.json()["output"]["task_id"]
+        print(task_id)
+        # 开始生成
+        video_path = os.path.join("static", "videos", "out.mp4")
+        success = check_and_download_video(task_id,api_key)
+        if success:
+            print(f"[backend.video_generator] 视频生成完成，路径：{video_path}")
+        else :
+            print(f"[backend.video_generator] 视频生成失败")
+        return video_path
+        
     video_path = os.path.join("static", "videos", "out.mp4")
     print(f"[backend.video_generator] 视频生成完成，路径：{video_path}")
     return video_path

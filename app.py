@@ -3,7 +3,8 @@ import os
 from backend.video_generator import generate_video
 from backend.model_trainer import train_model
 from backend.chat_engine import chat_response
-
+from dotenv import load_dotenv
+load_dotenv()
 app = Flask(__name__)
 
 # 首页
@@ -17,9 +18,9 @@ def video_generation():
     if request.method == 'POST':
         data = {
             "model_name": request.form.get('model_name'),
-            "model_param": request.form.get('model_param'),
+            "ref_video":request.form.get('ref_video'),
             "ref_audio": request.form.get('ref_audio'),
-            "gpu_choice": request.form.get('gpu_choice'),
+            "iter": request.form.get('iter'),
             "target_text": request.form.get('target_text'),
         }
 
@@ -55,8 +56,10 @@ def chat_system():
     if request.method == 'POST':
         data = {
             "model_name": request.form.get('model_name'),
-            "model_param": request.form.get('model_param'),
+            "iter": request.form.get('iter'),
+            "ref_video": request.form.get('ref_video'),
             "voice_clone": request.form.get('voice_clone'),
+            "ref_audio": request.form.get('ref_audio'),
             "api_choice": request.form.get('api_choice'),
         }
 
