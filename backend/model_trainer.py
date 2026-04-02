@@ -5,7 +5,6 @@ import shutil
 import re
 from .utils import upload_file_and_get_url
 from datetime import datetime, timedelta
-from .config import CONTAINER_NAME
 def train_model(data):
     """
     模拟模型训练逻辑。
@@ -13,30 +12,12 @@ def train_model(data):
     print("[backend.model_trainer] 收到数据：")
     for k, v in data.items():
         print(f"  {k}: {v}")
-    
+
     video_path = data['ref_video']
     epoch = data['epoch']
     print(f"输入视频：{video_path}")
-    
-    # 复制视频到目录
-    subprocess.run(f"docker cp {video_path} {CONTAINER_NAME}:/DFRF/dataset/vids")
-    video_id,_ = os.path.splitext(os.path.basename(video_path))
-    
-    
-    if data['model_choice'] == "DFRF":
-        # 数据预处理
-        print("[backend.model_trainer] 数据预处理中...")
-        subprocess.run(f"docker exec {CONTAINER_NAME} python process_data.py {video_id}")
-        # print(f"docker exec {CONTAINER_NAME} python /DFRF/process_data.py {video_id}")
-        print("[backend.model_trainer] 数据预处理完成")
-    
-        # 训练
-        print("[backend.model_trainer] 训练中...")
-        # subprocess.run(f"docker exec {CONTAINER_NAME} ls")
-        subprocess.run(f"docker exec {CONTAINER_NAME} python NeRFs/run_nerf_deform.py --config dataset/{video_id}/0/config.txt --N_iters {epoch}")
-        print((f"docker exec -w /DFRF {CONTAINER_NAME} python NeRFs/run_nerf_deform.py --config dataset/{video_id}/0/config.txt --N_iters {epoch}"))
-        print("[backend.model_trainer] 训练完成")
-    elif data['model_choice'] == "VideoRetalk":
+
+    if data['model_choice'] == "VideoRetalk":
         api_key = os.getenv("DASHSCOPE_API_KEY")
         if not api_key:
             raise Exception("请设置DASHSCOPE_API_KEY环境变量")
