@@ -20,3 +20,4 @@ exp_info.npy
 GPT-SoVITS/
 
 test_data/
+*.sqlite3

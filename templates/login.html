@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - DATA HAMMER</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        .auth-container {
+            position: relative;
+            z-index: 10;
+            width: 460px;
+            max-width: 92vw;
+            padding: 45px 36px;
+            background: var(--glass-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: 0 0 60px rgba(0, 0, 0, 0.9), inset 0 0 30px rgba(0, 243, 255, 0.05);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+        }
+
+        .title {
+            font-size: 2rem;
+            font-weight: 800;
+            text-align: center;
+            margin-bottom: 6px;
+            letter-spacing: 2px;
+            background: linear-gradient(120deg, #fff 0%, #00f3ff 50%, #fff 100%);
+            background-size: 200% auto;
+            color: transparent;
+            -webkit-background-clip: text;
+            background-clip: text;
+            animation: shine 5s linear infinite;
+        }
+
+        .subtitle {
+            display: block;
+            text-align: center;
+            color: rgba(255,255,255,0.65);
+            font-size: 0.86rem;
+            letter-spacing: 3px;
+            margin-bottom: 28px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-help {
+            margin-top: 10px;
+            color: rgba(255,255,255,0.78);
+            font-size: 0.85rem;
+            text-align: center;
+        }
+
+        .form-help a {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+
+        .form-help a:hover {
+            text-decoration: underline;
+        }
+
+        .alert-wrap {
+            margin-bottom: 16px;
+        }
+
+        .alert {
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            background: rgba(0, 0, 0, 0.35);
+        }
+
+        .alert-success {
+            border-color: rgba(0, 255, 136, 0.5);
+            color: #00ff88;
+        }
+
+        .alert-error {
+            border-color: rgba(255, 42, 42, 0.5);
+            color: #ff8b8b;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-top: 14px;
+            color: rgba(255,255,255,0.75);
+            font-size: 0.85rem;
+            text-decoration: none;
+        }
+
+        .back-link:hover {
+            color: var(--primary-color);
+        }
+
+        @keyframes shine { to { background-position: 200% center; } }
+    </style>
+</head>
+<body>
+    <canvas id="bg-canvas"></canvas>
+
+    <div class="auth-container">
+        <div class="title">DATA HAMMER</div>
+        <span class="subtitle">USER LOGIN / 用户登录</span>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="alert-wrap">
+            {% for category, message in messages %}
+            <div class="alert {% if category == 'success' %}alert-success{% else %}alert-error{% endif %}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        {% endwith %}
+
+        <form method="post" action="{{ url_for('login') }}">
+            <div class="form-group">
+                <label for="username">用户名 / USERNAME</label>
+                <input id="username" name="username" type="text" placeholder="请输入用户名" required minlength="3" autocomplete="username">
+            </div>
+
+            <div class="form-group">
+                <label for="password">密码 / PASSWORD</label>
+                <input id="password" name="password" type="password" placeholder="请输入密码" required minlength="6" autocomplete="current-password">
+            </div>
+
+            <button type="submit" class="generate-btn">登录 / SIGN IN</button>
+        </form>
+
+        <div class="form-help">
+            还没有账号？
+            <a href="{{ url_for('register') }}">立即注册</a>
+        </div>
+
+        <a class="back-link" href="/">← 返回首页</a>
+    </div>
+
+    <script>
+        // 粒子背景（与项目其他页面一致）
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let particlesArray = [];
+        let mouse = { x: null, y: null, radius: 140 };
+        let particleColorHex = localStorage.getItem('site_particle_color') || '#00f3ff';
+        let particleColorRgb = hexToRgbString(particleColorHex);
+
+        function hexToRgbString(hex) {
+            let c;
+            if(/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)){
+                c = hex.substring(1).split('');
+                if(c.length === 3) c = [c[0], c[0], c[1], c[1], c[2], c[2]];
+                c = '0x' + c.join('');
+                return [(c >> 16) & 255, (c >> 8) & 255, c & 255].join(',');
+            }
+            return '0,243,255';
+        }
+
+        window.addEventListener('mousemove', function(event) {
+            mouse.x = event.x;
+            mouse.y = event.y;
+        });
+        window.addEventListener('mouseout', function() {
+            mouse.x = undefined;
+            mouse.y = undefined;
+        });
+        window.addEventListener('resize', function() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            initParticles();
+        });
+
+        class Particle {
+            constructor(x, y, dx, dy, size, color) {
+                this.x = x; this.y = y;
+                this.dx = dx; this.dy = dy;
+                this.size = size; this.color = color;
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+            }
+            update() {
+                if (this.x > canvas.width || this.x < 0) this.dx = -this.dx;
+                if (this.y > canvas.height || this.y < 0) this.dy = -this.dy;
+                this.x += this.dx;
+                this.y += this.dy;
+                this.draw();
+            }
+        }
+
+        function initParticles() {
+            particlesArray = [];
+            const count = (canvas.width * canvas.height) / 9000;
+            for (let i = 0; i < count; i++) {
+                const size = Math.random() * 2 + 1;
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height;
+                const dx = (Math.random() - 0.5) * 0.9;
+                const dy = (Math.random() - 0.5) * 0.9;
+                particlesArray.push(new Particle(x, y, dx, dy, size, particleColorHex));
+            }
+        }
+
+        function connect() {
+            for (let a = 0; a < particlesArray.length; a++) {
+                for (let b = a; b < particlesArray.length; b++) {
+                    const d = ((particlesArray[a].x - particlesArray[b].x) ** 2) + ((particlesArray[a].y - particlesArray[b].y) ** 2);
+                    if (d < (canvas.width / 7) * (canvas.height / 7)) {
+                        ctx.strokeStyle = 'rgba(' + particleColorRgb + ',' + (1 - d / 20000) + ')';
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(particlesArray[a].x, particlesArray[a].y);
+                        ctx.lineTo(particlesArray[b].x, particlesArray[b].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particlesArray.forEach(p => p.update());
+            connect();
+        }
+
+        initParticles();
+        animate();
+    </script>
+</body>
+</html>

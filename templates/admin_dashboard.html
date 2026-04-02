@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理员控制台 - DATA HAMMER</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body { overflow-x: hidden; }
+
+        .page-wrap {
+            max-width: 1400px;
+            margin: 24px auto 40px;
+            padding: 0 20px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .header-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: 0 0 40px rgba(0, 0, 0, 0.7), inset 0 0 20px rgba(0, 243, 255, 0.05);
+            backdrop-filter: blur(12px);
+            padding: 18px 24px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-title {
+            margin: 0;
+            color: #fff;
+            letter-spacing: 2px;
+            text-shadow: 0 0 12px var(--primary-color);
+            font-size: 1.35rem;
+        }
+
+        .header-sub {
+            margin: 0;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 0.9rem;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .small-btn {
+            background: rgba(0, 243, 255, 0.08);
+            color: var(--primary-color);
+            border: 1px solid var(--primary-color);
+            border-radius: 6px;
+            padding: 8px 14px;
+            cursor: pointer;
+            transition: all .25s ease;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+
+        .small-btn:hover {
+            background: var(--primary-color);
+            color: #000;
+            box-shadow: 0 0 18px rgba(0, 243, 255, 0.55);
+        }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+
+        .stat-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 14px 16px;
+            box-shadow: 0 0 25px rgba(0, 0, 0, 0.6);
+        }
+
+        .stat-label {
+            color: rgba(255,255,255,0.7);
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            color: #fff;
+            font-size: 1.4rem;
+            font-weight: 700;
+            text-shadow: 0 0 8px var(--primary-color);
+        }
+
+        .panel {
+            background: var(--glass-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: 0 0 40px rgba(0,0,0,0.7), inset 0 0 20px rgba(0, 243, 255, 0.04);
+            backdrop-filter: blur(12px);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .panel-head {
+            padding: 16px 18px;
+            border-bottom: 1px solid rgba(255,255,255,0.12);
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .panel-title {
+            margin: 0;
+            color: var(--primary-color);
+            font-size: 1.05rem;
+            letter-spacing: 1px;
+        }
+
+        .table-wrap {
+            overflow: auto;
+            max-height: 460px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 760px;
+        }
+
+        thead tr {
+            background: rgba(0, 243, 255, 0.08);
+        }
+
+        th, td {
+            text-align: left;
+            padding: 12px 14px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            color: #fff;
+            font-size: 0.92rem;
+            vertical-align: top;
+        }
+
+        th {
+            color: var(--primary-color);
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            backdrop-filter: blur(6px);
+        }
+
+        tbody tr:hover {
+            background: rgba(255, 255, 255, 0.04);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            border: 1px solid;
+        }
+
+        .badge-admin {
+            color: #ffdd57;
+            border-color: #ffdd57;
+            background: rgba(255, 221, 87, 0.1);
+        }
+
+        .badge-user {
+            color: #8be9fd;
+            border-color: #8be9fd;
+            background: rgba(139, 233, 253, 0.1);
+        }
+
+        .filters {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filters input,
+        .filters select {
+            width: auto;
+            min-width: 140px;
+            padding: 8px 10px;
+            font-size: 0.88rem;
+        }
+
+        .hint {
+            color: rgba(255,255,255,0.65);
+            font-size: 0.82rem;
+        }
+
+        .empty-tip {
+            padding: 18px;
+            color: rgba(255,255,255,.75);
+        }
+    </style>
+</head>
+<body>
+    <canvas id="bg-canvas"></canvas>
+
+    <div class="page-wrap">
+        <div class="header-card">
+            <div>
+                <h1 class="header-title">管理员控制台 / ADMIN DASHBOARD</h1>
+                <p class="header-sub">仅管理员可查看：用户信息与操作日志</p>
+            </div>
+            <div class="header-actions">
+                <a class="small-btn" href="{{ url_for('index') }}">返回首页</a>
+                <a class="small-btn" href="{{ url_for('logout') }}">退出登录</a>
+            </div>
+        </div>
+
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-label">用户总数</div>
+                <div class="stat-value">{{ users|length }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">管理员数量</div>
+                <div class="stat-value">{{ users|selectattr('is_admin')|list|length }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">日志条数(当前页)</div>
+                <div class="stat-value">{{ logs|length }}</div>
+            </div>
+        </div>
+
+        <section class="panel">
+            <div class="panel-head">
+                <h2 class="panel-title">用户列表 / USERS</h2>
+                <span class="hint">显示最近创建在前</span>
+            </div>
+            <div class="table-wrap">
+                {% if users and users|length > 0 %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 80px;">ID</th>
+                            <th>用户名</th>
+                            <th style="width: 140px;">角色</th>
+                            <th style="width: 260px;">创建时间</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr>
+                            <td>{{ user.id }}</td>
+                            <td>{{ user.username }}</td>
+                            <td>
+                                {% if user.is_admin %}
+                                    <span class="badge badge-admin">管理员</span>
+                                {% else %}
+                                    <span class="badge badge-user">普通用户</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ user.created_at }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty-tip">暂无用户数据</div>
+                {% endif %}
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="panel-head">
+                <h2 class="panel-title">操作日志 / OPERATION LOGS</h2>
+                <div class="filters">
+                    <input type="text" id="logKeyword" placeholder="搜索用户名/行为/详情">
+                    <select id="actionFilter">
+                        <option value="">全部行为</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-wrap">
+                {% if logs and logs|length > 0 %}
+                <table id="logsTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 80px;">ID</th>
+                            <th style="width: 80px;">UID</th>
+                            <th style="width: 140px;">用户名</th>
+                            <th style="width: 180px;">操作</th>
+                            <th>详情</th>
+                            <th style="width: 140px;">IP</th>
+                            <th style="width: 260px;">时间</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in logs %}
+                        <tr>
+                            <td>{{ log.id }}</td>
+                            <td>{{ log.user_id }}</td>
+                            <td class="col-username">{{ log.username }}</td>
+                            <td class="col-action">{{ log.action }}</td>
+                            <td class="col-detail">{{ log.detail or '' }}</td>
+                            <td>{{ log.ip_address or '' }}</td>
+                            <td>{{ log.created_at }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="empty-tip">暂无操作日志</div>
+                {% endif %}
+            </div>
+        </section>
+    </div>
+
+    <script>
+        // 日志筛选逻辑
+        (function initLogFilters() {
+            const table = document.getElementById('logsTable');
+            if (!table) return;
+
+            const keywordInput = document.getElementById('logKeyword');
+            const actionSelect = document.getElementById('actionFilter');
+            const rows = Array.from(table.querySelectorAll('tbody tr'));
+
+            // 填充 action 下拉
+            const actions = [...new Set(rows.map(r => {
+                const cell = r.querySelector('.col-action');
+                return cell ? cell.textContent.trim() : '';
+            }).filter(Boolean))].sort();
+
+            actions.forEach(action => {
+                const option = document.createElement('option');
+                option.value = action;
+                option.textContent = action;
+                actionSelect.appendChild(option);
+            });
+
+            function applyFilters() {
+                const keyword = (keywordInput.value || '').trim().toLowerCase();
+                const action = actionSelect.value;
+
+                rows.forEach(row => {
+                    const username = (row.querySelector('.col-username')?.textContent || '').toLowerCase();
+                    const rowAction = (row.querySelector('.col-action')?.textContent || '').trim();
+                    const detail = (row.querySelector('.col-detail')?.textContent || '').toLowerCase();
+
+                    const matchKeyword = !keyword || username.includes(keyword) || rowAction.toLowerCase().includes(keyword) || detail.includes(keyword);
+                    const matchAction = !action || rowAction === action;
+
+                    row.style.display = (matchKeyword && matchAction) ? '' : 'none';
+                });
+            }
+
+            keywordInput.addEventListener('input', applyFilters);
+            actionSelect.addEventListener('change', applyFilters);
+        })();
+    </script>
+
+    <script>
+        // 粒子背景（与现有页面风格一致）
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let particlesArray = [];
+        let particleColorHex = localStorage.getItem('site_particle_color') || '#00f3ff';
+        let particleColorRgb = hexToRgbString(particleColorHex);
+
+        const mouse = { x: null, y: null, radius: 150 };
+        window.addEventListener('mousemove', e => { mouse.x = e.x; mouse.y = e.y; });
+        window.addEventListener('mouseout', () => { mouse.x = undefined; mouse.y = undefined; });
+        window.addEventListener('resize', () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; initParticles(); });
+
+        function hexToRgbString(hex) {
+            let c;
+            if (/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)) {
+                c = hex.substring(1).split('');
+                if (c.length === 3) c = [c[0], c[0], c[1], c[1], c[2], c[2]];
+                c = '0x' + c.join('');
+                return [(c >> 16) & 255, (c >> 8) & 255, c & 255].join(',');
+            }
+            return '0,243,255';
+        }
+
+        class Particle {
+            constructor(x, y, dx, dy, size, color) {
+                this.x = x; this.y = y; this.dx = dx; this.dy = dy; this.size = size; this.color = color;
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+            }
+            update() {
+                if (this.x > canvas.width || this.x < 0) this.dx = -this.dx;
+                if (this.y > canvas.height || this.y < 0) this.dy = -this.dy;
+
+                const dx = mouse.x - this.x;
+                const dy = mouse.y - this.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < mouse.radius && mouse.x !== undefined) {
+                    const force = (mouse.radius - distance) / mouse.radius;
+                    this.x += (dx / distance) * force * 3;
+                    this.y += (dy / distance) * force * 3;
+                } else {
+                    this.x += this.dx;
+                    this.y += this.dy;
+                }
+                this.draw();
+            }
+        }
+
+        function initParticles() {
+            particlesArray = [];
+            const numberOfParticles = (canvas.width * canvas.height) / 9000;
+            for (let i = 0; i < numberOfParticles; i++) {
+                const size = Math.random() * 2 + 1;
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height;
+                const dx = Math.random() - 0.5;
+                const dy = Math.random() - 0.5;
+                particlesArray.push(new Particle(x, y, dx, dy, size, particleColorHex));
+            }
+        }
+
+        function connectParticles() {
+            for (let a = 0; a < particlesArray.length; a++) {
+                for (let b = a; b < particlesArray.length; b++) {
+                    const d = (particlesArray[a].x - particlesArray[b].x) ** 2 + (particlesArray[a].y - particlesArray[b].y) ** 2;
+                    if (d < (canvas.width / 7) * (canvas.height / 7)) {
+                        ctx.strokeStyle = 'rgba(' + particleColorRgb + ',' + (1 - d / 20000) + ')';
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(particlesArray[a].x, particlesArray[a].y);
+                        ctx.lineTo(particlesArray[b].x, particlesArray[b].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            particlesArray.forEach(p => p.update());
+            connectParticles();
+        }
+
+        // 应用主题/字体（跟全站保持一致）
+        (function applyAppearance() {
+            const themes = {
+                cyan: { '--primary-color': '#00f3ff', '--secondary-color': '#bc13fe' },
+                purple: { '--primary-color': '#bc13fe', '--secondary-color': '#00f3ff' },
+                gold: { '--primary-color': '#ffd700', '--secondary-color': '#ff4500' },
+                green: { '--primary-color': '#00ff00', '--secondary-color': '#003300' },
+                red: { '--primary-color': '#ff2a2a', '--secondary-color': '#ff8800' }
+            };
+            const savedTheme = localStorage.getItem('site_theme');
+            const savedFont = localStorage.getItem('site_font');
+            if (savedTheme && themes[savedTheme]) {
+                const t = themes[savedTheme];
+                Object.keys(t).forEach(k => document.documentElement.style.setProperty(k, t[k]));
+            }
+            if (savedFont) {
+                document.documentElement.style.setProperty('--font-family-base', savedFont);
+            }
+        })();
+
+        initParticles();
+        animate();
+    </script>
+</body>
+</html>

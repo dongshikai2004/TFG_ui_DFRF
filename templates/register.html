@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>注册 - DATA HAMMER</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .auth-container {
+            width: 420px;
+            padding: 36px 32px 28px;
+            background: var(--glass-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: 0 0 60px rgba(0, 0, 0, 0.9), inset 0 0 30px rgba(0, 243, 255, 0.05);
+            backdrop-filter: blur(15px);
+            position: relative;
+            z-index: 10;
+        }
+
+        .auth-title {
+            margin: 0 0 8px;
+            font-size: 2rem;
+            font-weight: 800;
+            text-align: center;
+            letter-spacing: 2px;
+            background: linear-gradient(120deg, #fff 0%, var(--primary-color) 50%, #fff 100%);
+            background-size: 200% auto;
+            color: transparent;
+            -webkit-background-clip: text;
+            background-clip: text;
+            animation: shine 5s linear infinite;
+        }
+
+        .auth-subtitle {
+            display: block;
+            text-align: center;
+            margin-bottom: 28px;
+            font-size: 0.8rem;
+            letter-spacing: 3px;
+            color: rgba(255, 255, 255, 0.65);
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group small {
+            margin-top: 6px;
+            color: rgba(255, 255, 255, 0.55);
+            font-size: 0.75rem;
+        }
+
+        .auth-actions {
+            margin-top: 8px;
+        }
+
+        .auth-links {
+            margin-top: 16px;
+            text-align: center;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .auth-links a {
+            color: var(--primary-color);
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        .auth-links a:hover {
+            text-shadow: 0 0 10px var(--primary-color);
+        }
+
+        .msg-stack {
+            margin-bottom: 14px;
+        }
+
+        .msg {
+            border-radius: 6px;
+            padding: 10px 12px;
+            margin-bottom: 8px;
+            font-size: 0.88rem;
+            border: 1px solid transparent;
+        }
+
+        .msg.error {
+            background: rgba(255, 42, 42, 0.14);
+            border-color: rgba(255, 42, 42, 0.6);
+            color: #ffd2d2;
+        }
+
+        .msg.success {
+            background: rgba(0, 255, 136, 0.14);
+            border-color: rgba(0, 255, 136, 0.55);
+            color: #b9ffe2;
+        }
+
+        .home-link {
+            display: inline-block;
+            margin-top: 8px;
+            font-size: 0.8rem;
+            color: rgba(255, 255, 255, 0.75);
+            text-decoration: none;
+            transition: .2s ease;
+        }
+
+        .home-link:hover {
+            color: var(--primary-color);
+            text-shadow: 0 0 8px var(--primary-color);
+        }
+
+        @keyframes shine {
+            to { background-position: 200% center; }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="bg-canvas"></canvas>
+
+    <div class="auth-container">
+        <h1 class="auth-title">REGISTER</h1>
+        <span class="auth-subtitle">CREATE YOUR ACCOUNT</span>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="msg-stack">
+                    {% for category, message in messages %}
+                        <div class="msg {{ 'error' if category == 'error' else 'success' }}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <form method="post" action="{{ url_for('register') }}">
+            <div class="form-group">
+                <label for="username">用户名 / USERNAME</label>
+                <input
+                    id="username"
+                    name="username"
+                    type="text"
+                    placeholder="请输入用户名"
+                    minlength="3"
+                    maxlength="32"
+                    required
+                    autocomplete="username"
+                />
+                <small>至少 3 个字符，仅建议使用字母、数字、下划线。</small>
+            </div>
+
+            <div class="form-group">
+                <label for="password">密码 / PASSWORD</label>
+                <input
+                    id="password"
+                    name="password"
+                    type="password"
+                    placeholder="请输入密码"
+                    minlength="6"
+                    required
+                    autocomplete="new-password"
+                />
+            </div>
+
+            <div class="form-group">
+                <label for="confirm_password">确认密码 / CONFIRM PASSWORD</label>
+                <input
+                    id="confirm_password"
+                    name="confirm_password"
+                    type="password"
+                    placeholder="请再次输入密码"
+                    minlength="6"
+                    required
+                    autocomplete="new-password"
+                />
+            </div>
+
+            <div class="auth-actions">
+                <button type="submit" class="generate-btn">注册 / SIGN UP</button>
+            </div>
+        </form>
+
+        <div class="auth-links">
+            已有账号？<a href="{{ url_for('login') }}">去登录 / LOGIN</a>
+            <br>
+            <a class="home-link" href="{{ url_for('index') }}">← 返回首页</a>
+        </div>
+    </div>
+
+    <script>
+        // 背景粒子效果（与站点风格保持一致）
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let particleColorHex = localStorage.getItem('site_particle_color') || '#00f3ff';
+        let particleColorRgb = hexToRgbString(particleColorHex);
+        let particlesArray = [];
+        const mouse = { x: null, y: null, radius: 140 };
+
+        function hexToRgbString(hex) {
+            let c;
+            if (/^#([A-Fa-f0-9]{3}){1,2}$/.test(hex)) {
+                c = hex.substring(1).split('');
+                if (c.length === 3) c = [c[0], c[0], c[1], c[1], c[2], c[2]];
+                c = '0x' + c.join('');
+                return [(c >> 16) & 255, (c >> 8) & 255, c & 255].join(',');
+            }
+            return '0,243,255';
+        }
+
+        class Particle {
+            constructor(x, y, dx, dy, size, color) {
+                this.x = x;
+                this.y = y;
+                this.dx = dx;
+                this.dy = dy;
+                this.size = size;
+                this.color = color;
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2, false);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+            }
+            update() {
+                if (this.x > canvas.width || this.x < 0) this.dx = -this.dx;
+                if (this.y > canvas.height || this.y < 0) this.dy = -this.dy;
+
+                const dx = mouse.x - this.x;
+                const dy = mouse.y - this.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < mouse.radius && mouse.x !== null && distance !== 0) {
+                    const force = (mouse.radius - distance) / mouse.radius;
+                    this.x += (dx / distance) * force * 2.5;
+                    this.y += (dy / distance) * force * 2.5;
+                } else {
+                    this.x += this.dx;
+                    this.y += this.dy;
+                }
+                this.draw();
+            }
+        }
+
+        function init() {
+            particlesArray = [];
+            const numberOfParticles = (canvas.height * canvas.width) / 9000;
+            for (let i = 0; i < numberOfParticles; i++) {
+                const size = Math.random() * 2 + 1;
+                const x = Math.random() * canvas.width;
+                const y = Math.random() * canvas.height;
+                const dx = Math.random() - 0.5;
+                const dy = Math.random() - 0.5;
+                particlesArray.push(new Particle(x, y, dx, dy, size, particleColorHex));
+            }
+        }
+
+        function connect() {
+            for (let a = 0; a < particlesArray.length; a++) {
+                for (let b = a; b < particlesArray.length; b++) {
+                    const dist =
+                        (particlesArray[a].x - particlesArray[b].x) ** 2 +
+                        (particlesArray[a].y - particlesArray[b].y) ** 2;
+                    if (dist < (canvas.width / 7) * (canvas.height / 7)) {
+                        ctx.strokeStyle = 'rgba(' + particleColorRgb + ',' + (1 - dist / 20000) + ')';
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.moveTo(particlesArray[a].x, particlesArray[a].y);
+                        ctx.lineTo(particlesArray[b].x, particlesArray[b].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (let i = 0; i < particlesArray.length; i++) particlesArray[i].update();
+            connect();
+        }
+
+        window.addEventListener('mousemove', (e) => {
+            mouse.x = e.x;
+            mouse.y = e.y;
+        });
+
+        window.addEventListener('mouseout', () => {
+            mouse.x = null;
+            mouse.y = null;
+        });
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            init();
+        });
+
+        init();
+        animate();
+    </script>
+</body>
+</html>
